@@ -364,6 +364,10 @@ definitions:
         type: boolean
         description: |
           Whether Lando is able to land to the repository or not.
+      approval_required:
+        type: boolean
+        description: |
+          Whether Lando needs an approval before landing the stack.
   Revision:
     type: object
     properties:
