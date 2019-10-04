@@ -8,14 +8,21 @@ from connexion import problem
 from flask import current_app, g
 
 from landoapi import auth
-from landoapi.models.uplift import Uplift, UpliftRisk
 from landoapi.repos import get_repos_for_env
 from landoapi.storage import db
 from landoapi.validation import revision_id_to_int
+import enum
 
 logger = logging.getLogger(__name__)
 
 UPLIFT_KEYS = ('user_impact', 'steps_to_reproduce', 'risky', 'string_changes', 'automated_tests', 'nightly', 'risk', 'bug_ids')
+
+@enum.unique
+class UpliftRisk(enum.Enum):
+    """Risk level of the uplift request."""
+    low = "low"
+    medium = "medium"
+    high = "high"
 
 
 def validate_uplift_data(data):
@@ -26,9 +33,6 @@ def validate_uplift_data(data):
         for key in UPLIFT_KEYS
     }
     logger.info("VALIDATED uplift data {}".format(out))
-
-    # Validate risk is an enum value
-    out['risk'] = UpliftRisk(out['risk'])
 
     # Validate repositories
     out['repositories'] = [
@@ -66,14 +70,10 @@ def create(data):
 
 
     for repo in cleaned_data["repositories"]:
-        # TODO: check the (rev, repo) uplift request does not already exists
-        uplift_request = Uplift(
-            revision_id=revision_id,
-            repository=repo["phid"],
-            requester_email=g.auth0_user.email,
-            **cleaned_data
-        )
-        db.session.add(uplift_request)
+        # TODO: check this is not a duplicate
+
+        # TODO: create an uplift request with that patch
+        pass
 
     db.session.commit()
 

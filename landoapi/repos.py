@@ -66,7 +66,7 @@ REPO_CONFIG = {
         "localdev": Repo("localdev", SCM_LEVEL_1, "", "http://hg.test", True),
 
         # Approval is required for the uplift dev repo
-        "uplift": Repo("uplift", SCM_LEVEL_1, "", "http://hg.test", True),
+        "uplift-target": Repo("uplift-target", SCM_LEVEL_1, "", "http://hg.test", True),
     },
     "devsvcdev": {
         "test-repo": Repo(
