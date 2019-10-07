@@ -9,13 +9,11 @@ from flask import current_app, g
 
 from landoapi import auth
 from landoapi.repos import get_repos_for_env
-from landoapi.validation import revision_id_to_int
 from landoapi.uplift import create_uplift_revision
+from landoapi.decorators import require_phabricator_api_key
 import enum
 
 logger = logging.getLogger(__name__)
-
-UPLIFT_FORM_KEYS = ('user_impact', 'steps_to_reproduce', 'risky', 'string_changes', 'automated_tests', 'nightly', 'risk', 'bug_ids')
 
 @enum.unique
 class UpliftRisk(enum.Enum):
@@ -25,43 +23,40 @@ class UpliftRisk(enum.Enum):
     high = "high"
 
 
-def validate_uplift_data(data):
-    """Validate the data received on the endpoint"""
-    form_data = {
-        key: data.get(key)
-        for key in UPLIFT_FORM_KEYS
-    }
+@require_phabricator_api_key(optional=True)
+@auth.require_auth0(scopes=("lando", "profile", "email"), userinfo=True)
+def create(data):
+    """Create new uplift requests for requested repositories & revision"""
+
+    from pprint import pprint
+    pprint(data)
 
     # Validate repositories
     repositories = [
         repo_key
         for repo_key, repo in get_repos_for_env(current_app.config.get("ENVIRONMENT")).items()
-        if repo_key in data["repositories"] and repo["approval_required"] is True
+        if repo_key in data["repositories"] and repo.approval_required is True
     ]
     if not repositories:
-        raise ValueError("No valid repositories found")
-
-    return form_data, repositories
-
-
-@auth.require_auth0(scopes=("lando", "profile", "email"), userinfo=True)
-def create(data):
-    """Create new uplift requests for requested repositories & revision"""
-
-    revision_id = revision_id_to_int(data["revision_id"])
-    try:
-        cleaned_data, repositories = validate_uplift_data(data)
-    except ValueError as e:
         return problem(
             400,
-            "Invalid value",
-            str(e),
+            "No valid uplift repositories",
+            "Please select an uplift repository to create that uplift request.",
             type="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
         )
+
+    print('-'*20)
+    pprint(repositories)
 
     for repo in repositories:
         # TODO: check this is not a duplicate
 
-        create_uplift_revision(g.phabricator, revision_id, repo, cleaned_data)
+        try:
+            create_uplift_revision(g.phabricator, data["revision_id"], repo, data)
+        except Exception as e:
+            print('WOOOPS', e)
+            logger.errow("Failed to create an uplift request on revision {} and repository {} : {}".format(data["revision_id"], repo, str(e)))
+
+            raise
 
     return {}, 201

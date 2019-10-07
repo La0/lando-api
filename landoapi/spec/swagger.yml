@@ -242,12 +242,13 @@ paths:
               - risky
               - string_changes
               - automated_tests
+              - manual_qe
               - nightly
               - risk
               - bug_ids
             properties:
               revision_id:
-                type: string
+                type: integer
               repositories:
                 type: array
                 items:
@@ -261,6 +262,8 @@ paths:
               string_changes:
                 type: string
               automated_tests:
+                type: boolean
+              manual_qe:
                 type: boolean
               nightly:
                 type: boolean
