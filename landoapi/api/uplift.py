@@ -9,13 +9,13 @@ from flask import current_app, g
 
 from landoapi import auth
 from landoapi.repos import get_repos_for_env
-from landoapi.storage import db
 from landoapi.validation import revision_id_to_int
+from landoapi.uplift import create_uplift_revision
 import enum
 
 logger = logging.getLogger(__name__)
 
-UPLIFT_KEYS = ('user_impact', 'steps_to_reproduce', 'risky', 'string_changes', 'automated_tests', 'nightly', 'risk', 'bug_ids')
+UPLIFT_FORM_KEYS = ('user_impact', 'steps_to_reproduce', 'risky', 'string_changes', 'automated_tests', 'nightly', 'risk', 'bug_ids')
 
 @enum.unique
 class UpliftRisk(enum.Enum):
@@ -27,23 +27,21 @@ class UpliftRisk(enum.Enum):
 
 def validate_uplift_data(data):
     """Validate the data received on the endpoint"""
-    logger.info("Validating uplift data {} - {}".format(data, type(data)))
-    out = {
+    form_data = {
         key: data.get(key)
-        for key in UPLIFT_KEYS
+        for key in UPLIFT_FORM_KEYS
     }
-    logger.info("VALIDATED uplift data {}".format(out))
 
     # Validate repositories
-    out['repositories'] = [
-        repo
-        for repo in get_repos_for_env(current_app.config.get("ENVIRONMENT"))
-        if repo["phid"] in data["repositories"] and repo["approval_required"] is True
+    repositories = [
+        repo_key
+        for repo_key, repo in get_repos_for_env(current_app.config.get("ENVIRONMENT")).items()
+        if repo_key in data["repositories"] and repo["approval_required"] is True
     ]
-    if not out['repositories']:
+    if not repositories:
         raise ValueError("No valid repositories found")
 
-    return out
+    return form_data, repositories
 
 
 @auth.require_auth0(scopes=("lando", "profile", "email"), userinfo=True)
@@ -52,7 +50,7 @@ def create(data):
 
     revision_id = revision_id_to_int(data["revision_id"])
     try:
-        cleaned_data = validate_uplift_data(data)
+        cleaned_data, repositories = validate_uplift_data(data)
     except ValueError as e:
         return problem(
             400,
@@ -60,21 +58,10 @@ def create(data):
             str(e),
             type="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
         )
-    except Exception as e:
-        return problem(
-            400,
-            'oops',
-            str(e),
-            type="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
-        )
 
-
-    for repo in cleaned_data["repositories"]:
+    for repo in repositories:
         # TODO: check this is not a duplicate
 
-        # TODO: create an uplift request with that patch
-        pass
-
-    db.session.commit()
+        create_uplift_revision(g.phabricator, revision_id, repo, cleaned_data)
 
     return {}, 201

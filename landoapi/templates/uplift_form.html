@@ -1,0 +1,36 @@
+{# This template renders in Remarkup, not HTML, to be displayed in Phabricator #}
+= Uplift request D{{ source_revision.id }} - {{ source_revision.fields.title }} =
+
+View [source revision D{{ source_revision.id }}](/D{{ source_revision.id }})
+
+===== User impact if declined  =====
+
+{{ uplift.user_impact|default('Unknown') }}
+
+===== Steps to reproduce =====
+
+{{ uplift.steps_to_reproduce|default('Unknown') }}
+
+===== Why is the change risky/not risky ? =====
+
+{{ uplift.risky|default('Unknown') }}
+
+===== Is this code covered by automated tests ? =====
+
+{{ uplift.automated_tests|default('Unknown') }}
+
+===== Has the fix been verified in Nightly ? =====
+
+{{ uplift.nightly|default('Unknown') }}
+
+===== Risk to taking this patch =====
+
+{{ uplift.risk|default('Unknown') }}
+
+===== String changes made/needed =====
+
+{{ uplift.string_changes|default('Unknown') }}
+
+===== List of other uplifts needed =====
+
+{{ uplift.bug_ids|default('Unknown') }}

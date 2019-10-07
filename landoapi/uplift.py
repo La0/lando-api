@@ -6,20 +6,23 @@ import logging
 
 from landoapi.phabricator import PhabricatorClient
 from landoapi.repos import get_repos_for_env
-from landoapi.stacks import (
-    build_stack_graph,
-    calculate_landable_subgraphs,
-    get_landable_repos_for_revision_data,
-    request_extended_revision_data,
-)
+from landoapi.stacks import build_stack_graph, request_extended_revision_data
 
-from flask import current_app
+from flask import current_app, render_template
 
 
 logger = logging.getLogger(__name__)
 
 
-def create_uplift_revision(phab : PhabricatorClient, source_revision_id : int, target_repository : str):
+def render_uplift_form(source_revision: dict, form_data : dict) -> str:
+    """
+    Render the uplift form as a Remarkup string
+    This is used to populate the new revision's summary
+    """
+    return render_template("uplift_form.html", source_revision=source_revision, uplift=form_data)
+
+
+def create_uplift_revision(phab : PhabricatorClient, source_revision_id : int, target_repository : str, form_data: dict):
     """
     Create a new revision on a repository, cloning a diff from another repo
     """
@@ -29,15 +32,19 @@ def create_uplift_revision(phab : PhabricatorClient, source_revision_id : int, t
     assert local_repo is not None, f'Unknown repository {target_repository}'
     assert local_repo.approval_required is True, f'No approval required for {target_repository}'
 
-    # Load repo phid from phabricator
+    # Load repo phid from Phabricator
     phab_repo = phab.call_conduit(
         "diffusion.repository.search", constraints={"shortNames": [target_repository, ]}
     )
     phab_repo = phab.single(phab_repo, "data")
     logger.info(f"Will create an uplift request on {phab_repo['fields']['name']} - {phab_repo['phid']}")
 
-    from pprint import pprint
-    pprint(phab_repo)
+    # Load the release-managers group details from Phabricator
+    release_managers = phab.call_conduit(
+        "project.search", constraints={"slugs": ["release-managers", ]}
+    )
+    release_managers = phab.single(release_managers, "data")
+    logger.info(f"Will request review from {release_managers['fields']['name']} - {release_managers['phid']}")
 
     # Find the source diff on phabricator
     source_revision = phab.call_conduit(
@@ -45,32 +52,29 @@ def create_uplift_revision(phab : PhabricatorClient, source_revision_id : int, t
     )
     source_revision = phab.single(source_revision, "data")
     nodes, edges = build_stack_graph(phab, source_revision["phid"])
-    print('NODES')
-    pprint(nodes)
-    print('EDGES')
-    pprint(edges)
     stack_data = request_extended_revision_data(phab, [phid for phid in nodes])
-    print('Stack')
-    pprint(stack_data)
 
-
-    # Attach it to the new revision just created
+    # TODO: limit to some diffs ?
     for diff in stack_data.diffs.values():
 
         # Get raw diff
         raw_diff = phab.call_conduit("differential.getrawdiff", diffID=diff["id"])
-
-        print(raw_diff)
+        assert raw_diff, "Missing raw source diff"
 
         # Upload it on target repo
         new_diff = phab.call_conduit("differential.createrawdiff", diff=raw_diff, repositoryPHID=phab_repo["phid"])
         new_diff_phid = phab.expect(new_diff, "phid")
         logger.info(f"Created new diff {new_diff_phid}")
 
-        out = phab.call_conduit("differential.revision.edit", transactions=[
+        new_rev = phab.call_conduit("differential.revision.edit", transactions=[
             {"type": "update", "value": new_diff_phid},
             {"type": "title", "value": "Uplift request TEST"},
-        ])
-        pprint(out)
 
-    # Set form (other function ?)
+            # Set release managers as reviewers
+            {"type": "reviewers.add", "value": [release_managers["phid"]]},
+
+            # Add uplift request form as summary
+            {"type": "summary", "value": render_uplift_form(source_revision, form_data)},
+        ])
+
+        logger.info(f"Created new Phabricator revision {new_rev['object']['id']} - {new_rev['object']['phid']}")
