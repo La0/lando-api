@@ -19,10 +19,19 @@ def render_uplift_form(source_revision: dict, form_data : dict) -> str:
     Render the uplift form as a Remarkup string
     This is used to populate the new revision's summary
     """
-    return render_template("uplift_form.html", source_revision=source_revision, uplift=form_data)
+    return render_template(
+        "uplift_form.html",
+        source_revision=source_revision,
+        uplift=form_data,
+    )
 
 
-def create_uplift_revision(phab : PhabricatorClient, source_revision_id : int, target_repository : str, form_data: dict):
+def create_uplift_revision(
+    phab : PhabricatorClient,
+    source_revision_id : int,
+    target_repository : str,
+    form_data: dict,
+):
     """
     Create a new revision on a repository, cloning a diff from another repo
     """
@@ -30,21 +39,22 @@ def create_uplift_revision(phab : PhabricatorClient, source_revision_id : int, t
     repos = get_repos_for_env(current_app.config.get("ENVIRONMENT"))
     local_repo = repos.get(target_repository)
     assert local_repo is not None, f'Unknown repository {target_repository}'
-    assert local_repo.approval_required is True, f'No approval required for {target_repository}'
+    assert local_repo.approval_required is True, \
+        f'No approval required for {target_repository}'
 
     # Load repo phid from Phabricator
     phab_repo = phab.call_conduit(
         "diffusion.repository.search", constraints={"shortNames": [target_repository, ]}
     )
     phab_repo = phab.single(phab_repo, "data")
-    logger.info(f"Will create an uplift request on {phab_repo['fields']['name']} - {phab_repo['phid']}")
+    logger.info(f"Will create an uplift request on {phab_repo['fields']['name']} - {phab_repo['phid']}")  # noqa
 
     # Load the release-managers group details from Phabricator
     release_managers = phab.call_conduit(
         "project.search", constraints={"slugs": ["release-managers", ]}
     )
     release_managers = phab.single(release_managers, "data")
-    logger.info(f"Will request review from {release_managers['fields']['name']} - {release_managers['phid']}")
+    logger.info(f"Will request review from {release_managers['fields']['name']} - {release_managers['phid']}")  # noqa
 
     # Find the source diff on phabricator
     source_revision = phab.call_conduit(
@@ -62,7 +72,11 @@ def create_uplift_revision(phab : PhabricatorClient, source_revision_id : int, t
         assert raw_diff, "Missing raw source diff"
 
         # Upload it on target repo
-        new_diff = phab.call_conduit("differential.createrawdiff", diff=raw_diff, repositoryPHID=phab_repo["phid"])
+        new_diff = phab.call_conduit(
+            "differential.createrawdiff",
+            diff=raw_diff,
+            repositoryPHID=phab_repo["phid"],
+        )
         new_diff_phid = phab.expect(new_diff, "phid")
         logger.info(f"Created new diff {new_diff_phid}")
 
@@ -74,7 +88,10 @@ def create_uplift_revision(phab : PhabricatorClient, source_revision_id : int, t
             {"type": "reviewers.add", "value": [release_managers["phid"]]},
 
             # Add uplift request form as summary
-            {"type": "summary", "value": render_uplift_form(source_revision, form_data)},
+            {
+                "type": "summary",
+                "value": render_uplift_form(source_revision, form_data)
+            },
         ])
 
-        logger.info(f"Created new Phabricator revision {new_rev['object']['id']} - {new_rev['object']['phid']}")
+        logger.info(f"Created new Phabricator revision {new_rev['object']['id']} - {new_rev['object']['phid']}")  # noqa

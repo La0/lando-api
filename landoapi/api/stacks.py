@@ -71,7 +71,11 @@ def get(revision_id):
     landable, blocked = calculate_landable_subgraphs(
         stack_data, edges, landable_repos, other_checks=DEFAULT_OTHER_BLOCKER_CHECKS
     )
-    uplift_repos = [key for key, repo in supported_repos.items() if repo.approval_required]
+    uplift_repos = [
+        key
+        for key, repo in supported_repos.items()
+        if repo.approval_required
+    ]
 
     involved_phids = set()
     for revision in stack_data.revisions.values():

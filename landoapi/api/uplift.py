@@ -21,9 +21,10 @@ def create(data):
     """Create new uplift requests for requested repositories & revision"""
 
     # Validate repositories
+    all_repos = get_repos_for_env(current_app.config.get("ENVIRONMENT"))
     repositories = [
         repo_key
-        for repo_key, repo in get_repos_for_env(current_app.config.get("ENVIRONMENT")).items()
+        for repo_key, repo in all_repos.items()
         if repo_key in data["repositories"] and repo.approval_required is True
     ]
     if not repositories:
@@ -40,7 +41,7 @@ def create(data):
         try:
             create_uplift_revision(g.phabricator, data["revision_id"], repo, data)
         except Exception as e:
-            logger.error("Failed to create an uplift request on revision {} and repository {} : {}".format(data["revision_id"], repo, str(e)))
+            logger.error("Failed to create an uplift request on revision {} and repository {} : {}".format(data["revision_id"], repo, str(e)))  # noqa
 
             raise
 

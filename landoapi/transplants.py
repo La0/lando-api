@@ -283,7 +283,7 @@ def repo_block_approval_required(*, landing_repo, **kwargs):
     if landing_repo.approval_required is False:
         return None
 
-    # TODO: check uplift requests stored in database
+    # TODO: check uplift requests On Phabricator
     return "This repository requires an approval before landing."
 
 
@@ -332,7 +332,11 @@ def check_landing_blockers(
     landable_paths,
     landable_repos,
     *,
-    user_blocks=[user_block_no_auth0_email, user_block_scm_level, repo_block_approval_required]
+    user_blocks=[
+        user_block_no_auth0_email,
+        user_block_scm_level,
+        repo_block_approval_required
+    ]
 ):
     revision_path = []
     revision_to_diff_id = {}
