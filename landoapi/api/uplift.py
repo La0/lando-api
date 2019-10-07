@@ -11,25 +11,14 @@ from landoapi import auth
 from landoapi.repos import get_repos_for_env
 from landoapi.uplift import create_uplift_revision
 from landoapi.decorators import require_phabricator_api_key
-import enum
 
 logger = logging.getLogger(__name__)
-
-@enum.unique
-class UpliftRisk(enum.Enum):
-    """Risk level of the uplift request."""
-    low = "low"
-    medium = "medium"
-    high = "high"
 
 
 @require_phabricator_api_key(optional=True)
 @auth.require_auth0(scopes=("lando", "profile", "email"), userinfo=True)
 def create(data):
     """Create new uplift requests for requested repositories & revision"""
-
-    from pprint import pprint
-    pprint(data)
 
     # Validate repositories
     repositories = [
@@ -45,17 +34,13 @@ def create(data):
             type="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
         )
 
-    print('-'*20)
-    pprint(repositories)
-
     for repo in repositories:
         # TODO: check this is not a duplicate
 
         try:
             create_uplift_revision(g.phabricator, data["revision_id"], repo, data)
         except Exception as e:
-            print('WOOOPS', e)
-            logger.errow("Failed to create an uplift request on revision {} and repository {} : {}".format(data["revision_id"], repo, str(e)))
+            logger.error("Failed to create an uplift request on revision {} and repository {} : {}".format(data["revision_id"], repo, str(e)))
 
             raise
 
