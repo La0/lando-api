@@ -35,14 +35,15 @@ def create(data):
             type="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
         )
 
+    out = {}
     for repo in repositories:
         # TODO: check this is not a duplicate
 
         try:
-            create_uplift_revision(g.phabricator, data["revision_id"], repo, data)
+            out[repo] = create_uplift_revision(g.phabricator, data["revision_id"], repo, data)
         except Exception as e:
             logger.error("Failed to create an uplift request on revision {} and repository {} : {}".format(data["revision_id"], repo, str(e)))  # noqa
 
             raise
 
-    return {}, 201
+    return out, 201

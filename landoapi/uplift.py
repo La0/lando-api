@@ -3,6 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import logging
+import json
 
 from landoapi.phabricator import PhabricatorClient
 from landoapi.repos import get_repos_for_env
@@ -65,6 +66,7 @@ def create_uplift_revision(
     stack_data = request_extended_revision_data(phab, [phid for phid in nodes])
 
     # TODO: limit to some diffs ?
+    out = []
     for diff in stack_data.diffs.values():
 
         # Get raw diff
@@ -77,9 +79,31 @@ def create_uplift_revision(
             diff=raw_diff,
             repositoryPHID=phab_repo["phid"],
         )
+        new_diff_id = phab.expect(new_diff, "id")
         new_diff_phid = phab.expect(new_diff, "phid")
-        logger.info(f"Created new diff {new_diff_phid}")
+        logger.info(f"Created new diff {new_diff_id} - {new_diff_phid}")
 
+        # Attach commit information to setup the author (needed for landing)
+        commits = diff["attachments"]["commits"]["commits"]
+        phab.call_conduit(
+            "differential.setdiffproperty",
+            diff_id=new_diff_id,
+            name="local:commits",
+            data=json.dumps({
+                commit["identifier"]: {
+                    "author": commit["author"]["name"],
+                    "authorEmail": commit["author"]["email"],
+                    "time": 0,
+                    "message": commit["message"],
+                    "commit": commit["identifier"],
+                    "tree": None,
+                    "parents": commit["parents"],
+                }
+                for commit in commits
+            }),
+        )
+
+        # Finally create the revision to link all the pieces
         new_rev = phab.call_conduit("differential.revision.edit", transactions=[
             {"type": "update", "value": new_diff_phid},
             {"type": "title", "value": "Uplift request TEST"},
@@ -93,5 +117,12 @@ def create_uplift_revision(
                 "value": render_uplift_form(source_revision, form_data)
             },
         ])
-
+        out.append({
+            'revision_id': new_rev['object']['id'],
+            'revision_phid': new_rev['object']['id'],
+            'diff_id': new_diff_id,
+            'diff_phid': new_diff_phid,
+        })
         logger.info(f"Created new Phabricator revision {new_rev['object']['id']} - {new_rev['object']['phid']}")  # noqa
+
+    return out
