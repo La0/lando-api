@@ -106,7 +106,11 @@ def create_uplift_revision(
         # Finally create the revision to link all the pieces
         new_rev = phab.call_conduit("differential.revision.edit", transactions=[
             {"type": "update", "value": new_diff_phid},
-            {"type": "title", "value": "Uplift request TEST"},
+            {
+                "type": "title",
+                "value": f"Uplift request D{source_revision['id']}: {source_revision['fields']['title']}"  # noqa
+            },
+
 
             # Set release managers as reviewers
             {"type": "reviewers.add", "value": [release_managers["phid"]]},

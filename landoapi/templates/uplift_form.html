@@ -1,5 +1,19 @@
 {# This template renders in Remarkup, not HTML, to be displayed in Phabricator #}
-= Uplift request D{{ source_revision.id }} - {{ source_revision.fields.title }} =
+{% macro yes_no(value) -%}
+
+{% if value is True %}
+{icon check color=green} Yes
+
+{% elif value is False %}
+{icon times color=red} No
+{% else %}
+
+{icon question color=blue} Unknown
+{% endif %}
+
+{%- endmacro %}
+
+= Uplift request details =
 
 View [source revision D{{ source_revision.id }}](/D{{ source_revision.id }})
 
@@ -17,15 +31,19 @@ View [source revision D{{ source_revision.id }}](/D{{ source_revision.id }})
 
 ===== Is this code covered by automated tests ? =====
 
-{{ uplift.automated_tests|default('Unknown') }}
+{{ yes_no(uplift.automated_tests) }}
 
 ===== Has the fix been verified in Nightly ? =====
 
-{{ uplift.nightly|default('Unknown') }}
+{{ yes_no(uplift.nightly) }}
 
 ===== Risk to taking this patch =====
 
 {{ uplift.risk|default('Unknown') }}
+
+===== Needs manual test from QE ? =====
+
+{{ yes_no(uplift.manual_qe) }}
 
 ===== String changes made/needed =====
 
@@ -33,4 +51,10 @@ View [source revision D{{ source_revision.id }}](/D{{ source_revision.id }})
 
 ===== List of other uplifts needed =====
 
-{{ uplift.bug_ids|default('Unknown') }}
+{% if uplift.bug_ids %}
+{% for bug in uplift.bug_ids %}
+- Bug {{ bug }}
+{% endfor %}
+{% else %}
+No other uplifts.
+{% endif%}
