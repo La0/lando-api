@@ -117,12 +117,15 @@ def create_uplift_revision(
                 "value": render_uplift_form(source_revision, form_data)
             },
         ])
+        logger.info(f"Created new Phabricator revision {new_rev['object']['id']} - {new_rev['object']['phid']}")  # noqa
+
+        # Build output payload
         out.append({
+            'url': f"{phab.url_base}/D{new_rev['object']['id']}",
             'revision_id': new_rev['object']['id'],
             'revision_phid': new_rev['object']['id'],
             'diff_id': new_diff_id,
             'diff_phid': new_diff_phid,
         })
-        logger.info(f"Created new Phabricator revision {new_rev['object']['id']} - {new_rev['object']['phid']}")  # noqa
 
     return out
