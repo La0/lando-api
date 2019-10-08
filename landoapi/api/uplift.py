@@ -40,7 +40,12 @@ def create(data):
         # TODO: check this is not a duplicate
 
         try:
-            out[repo] = create_uplift_revision(g.phabricator, data["revision_id"], repo, data)
+            out[repo] = create_uplift_revision(
+                g.phabricator,
+                data["revision_id"],
+                repo,
+                data
+            )
         except Exception as e:
             logger.error("Failed to create an uplift request on revision {} and repository {} : {}".format(data["revision_id"], repo, str(e)))  # noqa
 

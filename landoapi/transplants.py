@@ -279,7 +279,8 @@ def user_block_scm_level(*, auth0_user, landing_repo, **kwargs):
 
 
 def repo_block_approval_required(*, auth0_user, landing_repo, **kwargs):
-    """Check the repo does not need an approval or user has permission to land uplifts"""
+    """Check the repo does not need an approval
+    or user has permission to land uplifts"""
     if landing_repo.approval_required is False:
         return None
 
